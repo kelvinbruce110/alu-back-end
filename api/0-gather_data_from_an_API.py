@@ -1,42 +1,61 @@
 #!/usr/bin/python3
+"""Gather TODO list progress for a single employee."""
 
-import requests
 import sys
 
+import requests
 
-if __name__ == "__main__":
-    employee_id = int(sys.argv[1])
 
-    employee_url = (
-        f"https://jsonplaceholder.typicode.com/users/{employee_id}"
-    )
-    todos_url = "https://jsonplaceholder.typicode.com/todos"
+def main():
+    """Display an employee's completed TODO tasks."""
+    if len(sys.argv) != 2:
+        sys.exit(1)
 
-    employee_response = requests.get(employee_url)
-    todos_response = requests.get(todos_url)
+    try:
+        employee_id = int(sys.argv[1])
+    except ValueError:
+        sys.exit(1)
 
-    employee = employee_response.json()
-    all_tasks = todos_response.json()
+    try:
+        response = requests.get(
+            f"https://jsonplaceholder.typicode.com/users/{employee_id}",
+            timeout=10
+        )
 
-    employee_name = employee["name"]
+        if response.status_code != 200:
+            sys.exit(1)
 
-    employee_tasks = [
-        task for task in all_tasks
-        if task["userId"] == employee_id
-    ]
+        user_data = response.json()
+
+        todos_response = requests.get(
+            "https://jsonplaceholder.typicode.com/todos",
+            params={"userId": employee_id},
+            timeout=10
+        )
+
+        if todos_response.status_code != 200:
+            sys.exit(1)
+
+        todos = todos_response.json()
+
+    except requests.RequestException:
+        sys.exit(1)
 
     completed_tasks = [
-        task for task in employee_tasks
-        if task["completed"]
+        task for task in todos if task.get("completed")
     ]
 
-    total_tasks = len(employee_tasks)
-    number_of_done_tasks = len(completed_tasks)
-
     print(
-        f"Employee {employee_name} is done with tasks"
-        f"({number_of_done_tasks}/{total_tasks}):"
+        "Employee {} is done with tasks({}/{}):".format(
+            user_data.get("name"),
+            len(completed_tasks),
+            len(todos)
+        )
     )
 
     for task in completed_tasks:
-        print(f"\t {task['title']}")
+        print("\t {}".format(task.get("title")))
+
+
+if __name__ == "__main__":
+    main()
